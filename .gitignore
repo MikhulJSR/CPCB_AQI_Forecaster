@@ -13,11 +13,9 @@ ENV/
 htmlcov/
 .ipynb_checkpoints/
 
-# Data artifacts (track folders via .gitkeep, ignore data dumps)
-data/raw/*
-!data/raw/.gitkeep
-data/processed/*
-!data/processed/.gitkeep
+# Data artifacts (track sample CSV files)
+!data/raw/*.csv
+!data/processed/*.csv
 data/external/*
 !data/external/.gitkeep
 
