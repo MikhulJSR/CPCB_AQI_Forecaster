@@ -1,0 +1,36 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Caches and virtual environments
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# Data artifacts (track folders via .gitkeep, ignore data dumps)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+data/external/*
+!data/external/.gitkeep
+
+# Model weights and artifacts
+*.joblib
+*.pkl
+*.onnx
+
+# Environment and sensitive credentials
+.env
+*.env
+.secrets*
+
+# OS specific files
+.DS_Store
+Thumbs.db
