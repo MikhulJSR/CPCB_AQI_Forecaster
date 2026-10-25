@@ -93,6 +93,44 @@ class ModelEvaluator:
         }
 
     @staticmethod
+    def compute_probabilistic_metrics(
+        y_true: np.ndarray,
+        q10: np.ndarray,
+        q50: np.ndarray,
+        q90: np.ndarray
+    ) -> Dict[str, float]:
+        """
+        Compute probabilistic quantile metrics:
+        - Pinball Loss for P10, P50, P90
+        - Prediction Interval Coverage Probability (PICP) for [P10, P90] (target ~80%)
+        - Mean Prediction Interval Width (MPIW)
+        """
+        def pinball_loss(y, q, alpha):
+            err = y - q
+            return float(np.mean(np.maximum(alpha * err, (alpha - 1.0) * err)))
+
+        loss_10 = pinball_loss(y_true, q10, 0.10)
+        loss_50 = pinball_loss(y_true, q50, 0.50)
+        loss_90 = pinball_loss(y_true, q90, 0.90)
+        mean_pinball = (loss_10 + loss_50 + loss_90) / 3.0
+
+        # Empirical coverage: proportion where y_true is bounded by [q10, q90]
+        in_bounds = (y_true >= q10) & (y_true <= q90)
+        picp = float(np.mean(in_bounds) * 100.0)
+
+        # Average width of the prediction interval
+        mpiw = float(np.mean(q90 - q10))
+
+        return {
+            "pinball_loss_p10": round(loss_10, 2),
+            "pinball_loss_p50": round(loss_50, 2),
+            "pinball_loss_p90": round(loss_90, 2),
+            "mean_pinball_loss": round(mean_pinball, 2),
+            "picp_coverage_pct": round(picp, 2),
+            "mpiw_interval_width": round(mpiw, 2),
+        }
+
+    @staticmethod
     def compute_residual_diagnostics(
         df_test: pd.DataFrame,
         y_true: np.ndarray,

@@ -47,3 +47,21 @@ def test_grap_exceedance_metrics():
     assert np.isclose(grap_metrics["recall"], 0.6667, atol=1e-3)
     # CSI = 2 / (2 + 0 + 1) = 0.6667
     assert np.isclose(grap_metrics["csi_threat_score"], 0.6667, atol=1e-3)
+
+
+def test_probabilistic_metrics_computation():
+    """Verify pinball loss and PICP interval coverage calculation."""
+    y_true = np.array([100.0, 200.0, 300.0, 400.0, 500.0])
+    q10 = np.array([80.0, 170.0, 260.0, 350.0, 450.0])
+    q50 = np.array([100.0, 200.0, 300.0, 400.0, 500.0])
+    q90 = np.array([120.0, 230.0, 340.0, 450.0, 550.0])
+
+    evaluator = ModelEvaluator()
+    metrics = evaluator.compute_probabilistic_metrics(y_true, q10, q50, q90)
+
+    # All true points are within [q10, q90] -> coverage = 100%
+    assert metrics["picp_coverage_pct"] == 100.0
+    # Average width = (40 + 60 + 80 + 100 + 100) / 5 = 76.0
+    assert metrics["mpiw_interval_width"] == 76.0
+    # When q50 matches y_true, median pinball loss is 0.0
+    assert metrics["pinball_loss_p50"] == 0.0

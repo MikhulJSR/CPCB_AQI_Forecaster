@@ -69,3 +69,42 @@ def test_target_alignment_and_lag_causality():
 
     # Verify regulatory binary target flag (values > 250 are 1, else 0)
     assert df_target.loc[10, "target_grap_iv_h24"] == 0.0
+
+
+def test_tier2_feature_generation():
+    """Verify that Tier 2 features include spatial graph features and multi-horizon targets."""
+    n_hours = 80
+    times = pd.date_range("2025-10-01 00:00:00", periods=n_hours, freq="1h")
+    records = []
+    for s in ["Bawana, Delhi - DPCC", "Anand Vihar, Delhi - DPCC"]:
+        for t in times:
+            records.append({
+                "timestamp": t,
+                "station": s,
+                "pm25": 150.0,
+                "pm10": 250.0,
+                "temp": 20.0,
+                "humidity": 60.0,
+                "wind_speed": 3.0,
+                "wind_direction": 315.0,
+                "no2": 30.0,
+                "so2": 10.0,
+                "co": 1.0,
+                "o3": 25.0
+            })
+    df_sanitized = pd.DataFrame(records)
+
+    builder = FeatureBuilder()
+    df_tier2, feature_cols = builder.generate_tier2_features(df_sanitized, horizons=[24, 48], drop_incomplete=True)
+
+    # Check spatial features are in the feature list
+    assert "pm25_upwind_current" in feature_cols
+    assert "pm25_upwind_lag3" in feature_cols
+    assert "upwind_advection_flux" in feature_cols
+
+    # Check multi-horizon targets exist in DataFrame
+    assert "target_pm25_h24" in df_tier2.columns
+    assert "target_pm25_h48" in df_tier2.columns
+    assert "target_grap_iv_h24" in df_tier2.columns
+    assert "target_grap_iv_h48" in df_tier2.columns
+    assert len(df_tier2) > 0

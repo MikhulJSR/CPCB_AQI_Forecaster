@@ -15,7 +15,9 @@ from src.config import (
     REGULATORY_GRAP_IV_THRESHOLD,
     AUTOREGRESSIVE_LAGS,
     ROLLING_WINDOWS,
+    HORIZONS,
 )
+from src.features.spatial_graph import AtmosphericSpatialGraph
 
 logger = logging.getLogger(__name__)
 
@@ -121,27 +123,17 @@ class FeatureBuilder:
 
     def generate_features(self, df: pd.DataFrame, drop_incomplete: bool = True) -> Tuple[pd.DataFrame, List[str]]:
         """
-        Execute full feature engineering pipeline.
+        Execute original Tier 1 feature engineering pipeline.
         Returns the feature DataFrame and the list of predictor feature names.
         """
         logger.info("Building features with %d-hour target horizon...", self.horizon)
 
-        # 1. Physical wind vector decomposition
         df_wind = self.decompose_wind_vectors(df)
-
-        # 2. Cyclical time encoding
         df_time = self.encode_cyclical_time(df_wind)
-
-        # 3. Autoregressive lags
         df_lags = self.build_autoregressive_lags(df_time)
-
-        # 4. Rolling window statistics
         df_roll = self.build_rolling_statistics(df_lags)
-
-        # 5. Future target alignment
         df_aligned = self.align_targets(df_roll)
 
-        # Assemble list of predictor feature columns
         feature_cols = [
             f"pm25_lag_{lag}" for lag in self.lags
         ] + [
@@ -158,15 +150,82 @@ class FeatureBuilder:
             "no2", "so2", "co"
         ]
 
-        # Filter feature columns to only those present
         feature_cols = [c for c in feature_cols if c in df_aligned.columns]
-
         target_col = f"target_pm25_h{self.horizon}"
         if drop_incomplete:
-            # Drop warmup rows (where 48h lags are NaN) and tail rows (where target is NaN)
             initial_count = len(df_aligned)
             df_aligned = df_aligned.dropna(subset=feature_cols + [target_col]).reset_index(drop=True)
             logger.info("Dropped incomplete boundary rows: %d -> %d clean rows retained.",
                         initial_count, len(df_aligned))
+
+        return df_aligned, feature_cols
+
+    def generate_tier2_features(
+        self,
+        df: pd.DataFrame,
+        horizons: List[int] = HORIZONS,
+        drop_incomplete: bool = True
+    ) -> Tuple[pd.DataFrame, List[str]]:
+        """
+        Build complete Tier 2 feature matrix:
+        - Ingests sanitized continuous telemetry.
+        - Computes dynamic wind-directed spatial graph features (AtmosphericSpatialGraph).
+        - Computes autoregressive lags, 24h rolling window statistics, wind vectors, cyclical time.
+        - Aligns multi-horizon forecasting targets (t+24h and t+48h).
+        """
+        logger.info("Building Tier 2 features with spatial graph and multi-horizons %s...", horizons)
+
+        # 1. Atmospheric spatial graph cross-station features
+        graph = AtmosphericSpatialGraph()
+        df_spatial = graph.compute_dynamic_upwind_features(df)
+
+        # 2. Physical wind vector decomposition
+        df_wind = self.decompose_wind_vectors(df_spatial)
+
+        # 3. Cyclical time encoding
+        df_time = self.encode_cyclical_time(df_wind)
+
+        # 4. Autoregressive lags
+        df_lags = self.build_autoregressive_lags(df_time)
+
+        # 5. Rolling window statistics
+        df_roll = self.build_rolling_statistics(df_lags)
+
+        # 6. Align multi-horizon targets
+        df_aligned = df_roll.copy()
+        target_cols = []
+        for h in horizons:
+            t_col = f"target_pm25_h{h}"
+            b_col = f"target_grap_iv_h{h}"
+            df_aligned[t_col] = df_aligned.groupby("station")[PRIMARY_TARGET].shift(-h)
+            df_aligned[b_col] = (df_aligned[t_col] > REGULATORY_GRAP_IV_THRESHOLD).astype(float)
+            df_aligned.loc[df_aligned[t_col].isna(), b_col] = np.nan
+            target_cols.append(t_col)
+
+        # Assemble list of Tier 2 predictor feature columns
+        feature_cols = [
+            f"pm25_lag_{lag}" for lag in self.lags
+        ] + [
+            f"pm25_roll_mean_{w}" for w in self.windows
+        ] + [
+            f"pm25_roll_std_{w}" for w in self.windows
+        ] + [
+            f"pm25_roll_min_{w}" for w in self.windows
+        ] + [
+            f"pm25_roll_max_{w}" for w in self.windows
+        ] + [
+            "pm25_upwind_current", "pm25_upwind_lag3", "upwind_advection_flux",
+            "wind_u", "wind_v", "temp", "humidity", "ventilation_index_proxy",
+            "sin_hour", "cos_hour", "sin_day_of_year", "cos_day_of_year",
+            "no2", "so2", "co"
+        ]
+
+        feature_cols = [c for c in feature_cols if c in df_aligned.columns]
+
+        if drop_incomplete:
+            initial_count = len(df_aligned)
+            # Require all features and at least the 24h target to be non-null
+            df_aligned = df_aligned.dropna(subset=feature_cols + [target_cols[0]]).reset_index(drop=True)
+            logger.info("Tier 2 feature matrix: %d -> %d clean rows retained.", initial_count, len(df_aligned))
 
         return df_aligned, feature_cols
