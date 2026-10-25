@@ -27,7 +27,7 @@ Both models were evaluated on the exact same **chronological unseen test set** (
 
 ---
 
-## 2. Plain-English Guide to Every Metric
+## 2. Complete Guide to Every Metric
 
 To ensure clarity for researchers, data scientists, and policy makers, here is what each metric means, its mathematical formulation, and why it matters:
 
