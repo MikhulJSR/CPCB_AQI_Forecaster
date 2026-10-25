@@ -1,4 +1,4 @@
-# The Simple English Guide: Understanding Tier 2 (Quantile LightGBM & Spatial Graphs)
+# The Complete Guide: Understanding Tier 2 (Quantile LightGBM & Spatial Graphs)
 
 > **A clear, beginner-friendly, and complete walkthrough of everything built in Tier 2: why it was needed, how each component works, and how it crushed the Tier 1 baseline.**
 
