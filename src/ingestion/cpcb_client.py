@@ -111,8 +111,8 @@ class CPCBClient:
 
     def generate_authentic_telemetry_dataset(
         self,
-        start_date: str = "2026-09-01",
-        end_date: str = "2026-12-31",
+        start_date: str = "2025-09-01",
+        end_date: str = "2025-12-31",
         stations: Optional[List[Dict[str, Any]]] = None,
         random_seed: int = 42
     ) -> pd.DataFrame:

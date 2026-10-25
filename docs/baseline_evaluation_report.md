@@ -4,7 +4,7 @@
 * **Model:** Ridge Regression with L2 Regularization (Optimal $\lambda = 1000.00$)
 * **Forecast Horizon:** 24 Hours Ahead ($t+24\text{h}$)
 * **Evaluation Partition:** Chronological Unseen Test Set (480 observations across Delhi CAAQMS stations)
-* **Date Range:** 2026-11-19 14:00:00 to 2026-12-12 05:00:00
+* **Date Range:** 2025-11-19 14:00:00 to 2025-12-12 05:00:00
 
 ---
 
