@@ -65,6 +65,20 @@ def run_baseline_evaluation(horizon: int = DEFAULT_FORECAST_HORIZON) -> Dict[str
     grap_metrics = evaluator.compute_grap_exceedance_metrics(y_test, y_pred)
     diag_summary = evaluator.compute_residual_diagnostics(test_df, y_test, y_pred)
 
+    # Save row-by-row prediction artifacts for inspection
+    test_export = test_df.copy()
+    test_export["y_pred_pm25_h24"] = np.round(y_pred, 2)
+    test_export["residual"] = np.round(y_test - y_pred, 2)
+    test_export["abs_error"] = np.round(np.abs(y_test - y_pred), 2)
+    export_cols = [
+        "station", "timestamp", "pm25_lag_0", "pm25_lag_24", "temp", "wind_speed",
+        target_col, "y_pred_pm25_h24", "residual", "abs_error"
+    ]
+    export_cols = [c for c in export_cols if c in test_export.columns]
+    pred_path = PROCESSED_DATA_DIR / f"baseline_test_predictions_h{horizon}.csv"
+    test_export[export_cols].to_csv(pred_path, index=False)
+    logger.info("Saved row-by-row predictions to %s", pred_path)
+
     # Generate Markdown Report
     report_content = f"""# Baseline Evaluation Report: Tier 1 Regularized Autoregressive Model (Ridge)
 
